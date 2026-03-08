@@ -1,0 +1,458 @@
+:root {
+  --board-bg: #d7a65f;
+  --board-line: #8b5a2b;
+  --board-shadow: rgba(0, 0, 0, 0.18);
+  --stone-black: #222;
+  --stone-white: #f7f7f7;
+  --stone-border: rgba(0, 0, 0, 0.6);
+  --panel-bg: #111827;
+  --panel-border: #1f2937;
+  --text-muted: #9ca3af;
+  --accent: #10b981;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+  color: #e5e7eb;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.app-root {
+  width: 100%;
+  max-width: 1200px;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.app-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.9rem;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.board-container {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  aspect-ratio: 1 / 1;
+  background: var(--board-bg);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow:
+    0 18px 35px var(--board-shadow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* Grid lines: n horizontal + n vertical lines crossing at intersections.
+   Stones go ON the crossings. Edge lines included (corners/sides playable). */
+.board-grid-lines {
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+  border-left: 1px solid var(--board-line);
+  border-top: 1px solid var(--board-line);
+  box-sizing: border-box;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(100% / (var(--board-size, 9) - 1) - 1px),
+      var(--board-line) calc(100% / (var(--board-size, 9) - 1) - 1px),
+      var(--board-line) calc(100% / (var(--board-size, 9) - 1))
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(100% / (var(--board-size, 9) - 1) - 1px),
+      var(--board-line) calc(100% / (var(--board-size, 9) - 1) - 1px),
+      var(--board-line) calc(100% / (var(--board-size, 9) - 1))
+    );
+  background-size: 100% 100%;
+}
+
+/* Star point dot – above territory squares when shown, hidden when player has territory */
+.star-point-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.board-grid {
+  position: relative;
+  flex: 1;
+}
+
+.intersection-wrapper {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+}
+
+.intersection-wrapper .intersection {
+  width: 100%;
+  height: 100%;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 48px;
+  max-height: 48px;
+}
+
+.intersection-wrapper.disabled {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.board-container.disabled {
+  pointer-events: none;
+}
+
+.game-over-message {
+  color: var(--accent);
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.intersection {
+  position: relative;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.intersection:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Per-intersection grid lines removed; board draws lines at crossings */
+
+.captured-flash {
+  animation: captured-fade 400ms ease-out;
+}
+
+@keyframes captured-fade {
+  0% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(248, 113, 113, 0);
+  }
+}
+
+.stone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70%;
+  height: 70%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px var(--stone-border),
+    0 4px 8px rgba(0, 0, 0, 0.45);
+  z-index: 3;
+}
+
+.stone-black {
+  background: radial-gradient(circle at 30% 25%, #444, var(--stone-black));
+}
+
+.stone-white {
+  background: radial-gradient(circle at 30% 25%, #fff, var(--stone-white));
+}
+
+.stone-preview {
+  opacity: 0.55;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Territory: black and white little squares only (no circles). Above influence so visible. */
+.territory {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24%;
+  height: 24%;
+  transform: translate(-50%, -50%);
+  border-radius: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.territory-black {
+  background: #0d0d0d;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+}
+
+.territory-white {
+  background: #ffffff;
+  border: 1px solid #333;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  border-radius: 0;
+}
+
+.territory-black-weak {
+  background: rgba(13, 13, 13, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0;
+}
+
+.territory-white-weak {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 0;
+}
+
+.territory-neutral {
+  background: rgba(128, 128, 128, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 0;
+}
+
+.territory-empty {
+  background: var(--board-bg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0;
+}
+
+.influence {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24%;
+  height: 24%;
+  transform: translate(-50%, -50%);
+  border-radius: 0;
+  pointer-events: none;
+  opacity: 0.65;
+  z-index: 2;
+}
+
+.influence-black {
+  background: rgba(13, 13, 13, 0.6);
+}
+
+.influence-white {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.hint-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: 80%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px dashed rgba(250, 250, 250, 0.9);
+  box-sizing: border-box;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 540px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-group label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.control-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  flex-direction: row;
+}
+
+.control-toggle input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+select,
+button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #4b5563;
+  padding: 0.45rem 0.9rem;
+  background: #020617;
+  color: #e5e7eb;
+}
+
+button {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+.panel {
+  background: var(--panel-bg);
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  padding: 0.9rem 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.score-panel .current-player {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+.score-note {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.player-black {
+  color: #f97316;
+  font-weight: 600;
+}
+
+.player-white {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.explanations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.explanations-list li + li {
+  margin-top: 0.35rem;
+}
+
+.territory-help {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.territory-help ul {
+  margin: 0.4rem 0 0 1rem;
+  padding: 0;
+}
+
+.territory-help li {
+  margin-top: 0.25rem;
+}
+
+.score-estimated-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .board-container {
+    max-width: 100%;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
