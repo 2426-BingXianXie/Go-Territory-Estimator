@@ -2,6 +2,8 @@
 
 A web-based Go (Baduk) game with real-time territory estimation, designed to help beginners understand and improve their play.
 
+**🔗 Live Demo: https://2426-bingxianxie.github.io/Go-Territory-Estimator/**
+
 ![Go Territory Analyzer](https://img.shields.io/badge/React-19-61dafb?logo=react)
 ![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite)
 
