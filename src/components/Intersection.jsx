@@ -28,10 +28,16 @@ export default function Intersection({
     const OVERLAP_THRESHOLD = 1 // |influence| <= this → overlap (grey)
     const farFromStones = distanceToNearestStone > 3
 
-    if (territoryOwner === 'B' || territoryOwner === 'B_weak') {
+    if (territoryOwner === 'B') {
       territoryClass = 'territory territory-black'
-    } else if (territoryOwner === 'W' || territoryOwner === 'W_weak') {
+    } else if (territoryOwner === 'W') {
       territoryClass = 'territory territory-white'
+    } else if (territoryOwner === 'B_weak') {
+      // Weak territory (one color, open to edge): show faded, and only near
+      // the influencing stones so a lone stone doesn't flood the whole board.
+      territoryClass = farFromStones ? '' : 'territory territory-black-weak'
+    } else if (territoryOwner === 'W_weak') {
+      territoryClass = farFromStones ? '' : 'territory territory-white-weak'
     } else if (territoryOwner === 'N') {
       // Neutral region: use influence for visible feedback. Overlap → grey, else black/white. Far → empty.
       if (farFromStones) {
