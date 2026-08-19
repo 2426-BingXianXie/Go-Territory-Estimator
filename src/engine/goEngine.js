@@ -73,6 +73,7 @@ export function applyMove({
   boardSize,
   capturedByBlack,
   capturedByWhite,
+  koPoint = null,
 }) {
   const inBounds =
     row >= 0 && row < boardSize &&
@@ -86,6 +87,7 @@ export function applyMove({
       isLegal: false,
       reason: 'Move is out of bounds.',
       capturesThisMove: [],
+      koPoint: null,
     }
   }
 
@@ -97,6 +99,22 @@ export function applyMove({
       isLegal: false,
       reason: 'That point is already occupied.',
       capturesThisMove: [],
+      koPoint: null,
+    }
+  }
+
+  // Ko rule: a move may not immediately recapture into the point that was
+  // just vacated by a single-stone capture (which would recreate the previous
+  // board position and let the game loop forever).
+  if (koPoint && koPoint.row === row && koPoint.col === col) {
+    return {
+      board,
+      capturedByBlack,
+      capturedByWhite,
+      isLegal: false,
+      reason: 'Ko: you cannot immediately recapture here. Play elsewhere first.',
+      capturesThisMove: [],
+      koPoint: null,
     }
   }
 
@@ -141,7 +159,20 @@ export function applyMove({
       isLegal: false,
       reason: 'Suicide is not allowed: this move would leave your group with no liberties.',
       capturesThisMove: [],
+      koPoint: null,
     }
+  }
+
+  // Detect a ko: exactly one stone captured, and the placing stone is now a
+  // lone stone with exactly one liberty. The vacated point becomes forbidden
+  // to the opponent on their very next move.
+  let nextKoPoint = null
+  if (
+    capturedCoords.length === 1 &&
+    placedGroup.length === 1 &&
+    placedLiberties.size === 1
+  ) {
+    nextKoPoint = { row: capturedCoords[0].row, col: capturedCoords[0].col }
   }
 
   return {
@@ -151,16 +182,21 @@ export function applyMove({
     isLegal: true,
     reason: undefined,
     capturesThisMove: capturedCoords,
+    koPoint: nextKoPoint,
   }
 }
 
 /**
  * Remove dead stones (groups in atari whose single liberty is surrounded by opponent).
- * Returns a new board with dead groups cleared so territory counts correctly.
+ * Returns { board, removedBlack, removedWhite }: a new board with dead groups
+ * cleared so territory counts correctly, plus how many stones of each color were
+ * removed (so they can be added to the opponent's prisoners under Japanese rules).
  */
 function removeDeadStones(board) {
   const boardSize = board.length
   let working = board.map((r) => r.slice())
+  let removedBlack = 0
+  let removedWhite = 0
   let changed = true
   while (changed) {
     changed = false
@@ -219,23 +255,34 @@ function removeDeadStones(board) {
           for (const [gr, gc] of group) {
             working[gr][gc] = null
           }
+          if (color === 'B') {
+            removedBlack += group.length
+          } else {
+            removedWhite += group.length
+          }
           changed = true
         }
       }
     }
   }
-  return working
+  return { board: working, removedBlack, removedWhite }
 }
 
 /**
  * Territory estimation per spec:
- * - Strong: fully surrounded by one color → counts in score
- * - Weak: touches edge but only one color on border → does not count, shown light
+ * - Strong: fully enclosed by one color, no edge contact → counts in score
+ * - Weak: bounded by one color but touches the board edge → also counts in
+ *   score (the edge is a real boundary in Go), but is rendered faded because
+ *   it is less certain during play.
  * - Neutral: both colors touch → does not count, shown gray
  * - Undecided: no stones touch (open area) → shown nothing
  */
 export function estimateTerritory(board) {
-  const boardWithDeadRemoved = removeDeadStones(board)
+  const {
+    board: boardWithDeadRemoved,
+    removedBlack,
+    removedWhite,
+  } = removeDeadStones(board)
   const boardSize = boardWithDeadRemoved.length
   const visited = new Set()
   let territoryBlack = 0
@@ -304,6 +351,11 @@ export function estimateTerritory(board) {
     territoryBlack,
     territoryWhite,
     ownership,
+    // Dead stones lifted off the board: under Japanese rules each becomes a
+    // prisoner for the opponent, in addition to the point it vacated becoming
+    // territory. removedBlack were captured by White, and vice versa.
+    deadRemovedBlack: removedBlack,
+    deadRemovedWhite: removedWhite,
   }
 }
 
@@ -313,7 +365,17 @@ export function computeScore({
   capturedByWhite,
   komi = 6.5,
 }) {
-  const { territoryBlack, territoryWhite } = estimateTerritory(board)
+  const {
+    territoryBlack,
+    territoryWhite,
+    deadRemovedBlack,
+    deadRemovedWhite,
+  } = estimateTerritory(board)
+
+  // Dead stones lifted during scoring become prisoners for the opponent
+  // (Japanese rules): Black captures dead White stones, and vice versa.
+  const prisonersBlack = capturedByBlack + deadRemovedWhite
+  const prisonersWhite = capturedByWhite + deadRemovedBlack
 
   // When no strict/weak territory yet, use influence-based estimate so score updates during play
   let terrBlack = territoryBlack
@@ -330,8 +392,8 @@ export function computeScore({
     }
   }
 
-  const scoreBlack = terrBlack + capturedByBlack
-  const scoreWhite = terrWhite + capturedByWhite + komi
+  const scoreBlack = terrBlack + prisonersBlack
+  const scoreWhite = terrWhite + prisonersWhite + komi
 
   let leader = 'tie'
   let lead = 0
@@ -347,8 +409,10 @@ export function computeScore({
   return {
     territoryBlack: terrBlack,
     territoryWhite: terrWhite,
-    capturedByBlack,
-    capturedByWhite,
+    // Total prisoners each player holds, including dead stones lifted at
+    // scoring time. These are the values that sum to the score below.
+    capturedByBlack: prisonersBlack,
+    capturedByWhite: prisonersWhite,
     komi,
     scoreBlack,
     scoreWhite,
@@ -493,6 +557,7 @@ export function suggestBeginnerHint({
   capturedByBlack = 0,
   capturedByWhite = 0,
   komi = 6.5,
+  koPoint = null,
 }) {
   const size = boardSize ?? board.length
 
@@ -528,6 +593,7 @@ export function suggestBeginnerHint({
         boardSize: size,
         capturedByBlack,
         capturedByWhite,
+        koPoint,
       })
 
       if (!result.isLegal) continue

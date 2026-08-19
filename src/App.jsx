@@ -33,6 +33,7 @@ function createInitialState(boardSize) {
     gameOver: false,
     winner: null,
     pendingMove: null,
+    koPoint: null,
   }
 }
 
@@ -73,6 +74,7 @@ function App() {
     gameOver,
     winner,
     pendingMove,
+    koPoint,
   } = state
 
   /** Recompute territory every render so squares and score always reflect current board (per "Update Rule After Each Move"). */
@@ -89,6 +91,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!result.isLegal) return territory.ownership
     return estimateTerritory(result.board).ownership
@@ -112,6 +115,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!result.isLegal) return score
     return computeScore({
@@ -144,6 +148,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!result.isLegal) return influence
     return computeInfluence(result.board)
@@ -153,6 +158,7 @@ function App() {
     boardSize,
     capturedByBlack,
     capturedByWhite,
+    koPoint,
     pendingMove?.row,
     pendingMove?.col,
     influence,
@@ -173,6 +179,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!result.isLegal) return distanceMap
     return computeMinDistanceToStones(result.board)
@@ -182,6 +189,7 @@ function App() {
     boardSize,
     capturedByBlack,
     capturedByWhite,
+    koPoint,
     pendingMove?.row,
     pendingMove?.col,
     distanceMap,
@@ -233,6 +241,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!previewResult.isLegal) {
       pushExplanation(previewResult.reason || 'Illegal move.')
@@ -259,6 +268,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
 
     if (!result.isLegal) {
@@ -296,6 +306,7 @@ function App() {
         gameOver: true,
         winner: winnerColor,
         pendingMove: null,
+        koPoint: result.koPoint,
         history: [
           ...prev.history,
           {
@@ -304,6 +315,7 @@ function App() {
             capturedByBlack: prev.capturedByBlack,
             capturedByWhite: prev.capturedByWhite,
             moveHistory: prev.moveHistory,
+            koPoint: prev.koPoint,
           },
         ],
         future: [],
@@ -331,6 +343,7 @@ function App() {
       lastCaptures: result.capturesThisMove,
       consecutivePasses: 0,
       pendingMove: null,
+      koPoint: result.koPoint,
       history: [
         ...prev.history,
         {
@@ -339,6 +352,7 @@ function App() {
           capturedByBlack: prev.capturedByBlack,
           capturedByWhite: prev.capturedByWhite,
           moveHistory: prev.moveHistory,
+          koPoint: prev.koPoint,
         },
       ],
       future: [],
@@ -381,6 +395,7 @@ function App() {
         ...prev,
         currentPlayer: nextPlayer,
         consecutivePasses: passesAfter,
+        koPoint: null,
         gameOver: true,
         winner: winnerColor,
         explanations: [
@@ -397,6 +412,7 @@ function App() {
       ...prev,
       currentPlayer: nextPlayer,
       consecutivePasses: passesAfter,
+      koPoint: null,
       explanations: [
         ...prev.explanations,
         {
@@ -419,6 +435,7 @@ function App() {
         capturedByBlack: prev.capturedByBlack,
         capturedByWhite: prev.capturedByWhite,
         moveHistory: prev.moveHistory,
+        koPoint: prev.koPoint,
       }
 
       return {
@@ -428,6 +445,7 @@ function App() {
         capturedByBlack: lastSnapshot.capturedByBlack,
         capturedByWhite: lastSnapshot.capturedByWhite,
         moveHistory: lastSnapshot.moveHistory,
+        koPoint: lastSnapshot.koPoint ?? null,
         history: remainingHistory,
         future: [futureEntry, ...prev.future],
         lastCaptures: [],
@@ -453,6 +471,7 @@ function App() {
         capturedByBlack: prev.capturedByBlack,
         capturedByWhite: prev.capturedByWhite,
         moveHistory: prev.moveHistory,
+        koPoint: prev.koPoint,
       }
 
       return {
@@ -462,6 +481,7 @@ function App() {
         capturedByBlack: nextSnapshot.capturedByBlack,
         capturedByWhite: nextSnapshot.capturedByWhite,
         moveHistory: nextSnapshot.moveHistory,
+        koPoint: nextSnapshot.koPoint ?? null,
         history: [...prev.history, historyEntry],
         future: restFuture,
         lastCaptures: [],
@@ -517,6 +537,7 @@ function App() {
         gameOver: false,
         winner: null,
         consecutivePasses: 0,
+        koPoint: null,
       }))
       pushExplanation('Loaded saved game state.')
     } catch {
@@ -531,6 +552,7 @@ function App() {
       boardSize,
       capturedByBlack,
       capturedByWhite,
+      koPoint,
     })
     if (!hintResult) {
       pushExplanation('No hint available: the board is full.')

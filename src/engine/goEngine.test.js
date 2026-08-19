@@ -156,6 +156,138 @@ describe('goEngine - capture detection', () => {
   })
 })
 
+describe('goEngine - ko rule', () => {
+  it('reports a ko point after a single-stone recapture-vulnerable capture', () => {
+    const size = 9
+    const board = createEmptyBoard(size)
+
+    // Classic ko shape. White stone at (4,4) is captured by Black playing (4,3),
+    // leaving Black as a lone stone with one liberty -> ko forms at (4,4).
+    //        (3,4)B
+    // (4,3)_ (4,4)W (4,5)B
+    //        (5,4)B
+    // White (4,4) liberties: (4,3). Black plays (4,3) to capture.
+    board[3][4] = 'B'
+    board[4][5] = 'B'
+    board[5][4] = 'B'
+    board[4][4] = 'W'
+    // Give the future black stone at (4,3) exactly one liberty by walling it,
+    // except its own captured-point liberty at (4,4).
+    board[3][3] = 'W'
+    board[5][3] = 'W'
+    board[4][2] = 'W'
+
+    const capture = applyMove({
+      board,
+      row: 4,
+      col: 3,
+      color: 'B',
+      boardSize: size,
+      capturedByBlack: 0,
+      capturedByWhite: 0,
+    })
+
+    expect(capture.isLegal).toBe(true)
+    expect(capture.capturesThisMove).toHaveLength(1)
+    expect(capture.koPoint).toEqual({ row: 4, col: 4 })
+  })
+
+  it('forbids immediately recapturing at the ko point', () => {
+    const size = 9
+    const board = createEmptyBoard(size)
+    board[3][4] = 'B'
+    board[4][5] = 'B'
+    board[5][4] = 'B'
+    board[4][4] = 'W'
+    board[3][3] = 'W'
+    board[5][3] = 'W'
+    board[4][2] = 'W'
+
+    const capture = applyMove({
+      board,
+      row: 4,
+      col: 3,
+      color: 'B',
+      boardSize: size,
+      capturedByBlack: 0,
+      capturedByWhite: 0,
+    })
+
+    // White tries to recapture immediately at the ko point (4,4): illegal.
+    const recapture = applyMove({
+      board: capture.board,
+      row: 4,
+      col: 4,
+      color: 'W',
+      boardSize: size,
+      capturedByBlack: capture.capturedByBlack,
+      capturedByWhite: capture.capturedByWhite,
+      koPoint: capture.koPoint,
+    })
+
+    expect(recapture.isLegal).toBe(false)
+    expect(recapture.reason).toMatch(/ko/i)
+  })
+
+  it('does not set a ko point for a multi-stone capture', () => {
+    const size = 9
+    const board = createEmptyBoard(size)
+
+    // Two white stones in atari; capturing both is not a ko.
+    board[1][1] = 'W'
+    board[1][2] = 'W'
+    board[0][1] = 'B'
+    board[0][2] = 'B'
+    board[1][0] = 'B'
+    board[2][1] = 'B'
+    board[2][2] = 'B'
+
+    const result = applyMove({
+      board,
+      row: 1,
+      col: 3,
+      color: 'B',
+      boardSize: size,
+      capturedByBlack: 0,
+      capturedByWhite: 0,
+    })
+
+    expect(result.isLegal).toBe(true)
+    expect(result.koPoint).toBeNull()
+  })
+})
+
+describe('goEngine - dead stones count as prisoners', () => {
+  it('adds a lifted dead group to the opponent prisoner count in the score', () => {
+    const size = 9
+    const board = createEmptyBoard(size)
+
+    // A single white stone at (4,4) in atari: its only liberty is (4,3), and
+    // that liberty is enclosed by black stones only. The group is dead, so it
+    // should be lifted, counting as 1 point of territory AND 1 prisoner for Black.
+    board[4][4] = 'W'
+    board[3][4] = 'B'
+    board[5][4] = 'B'
+    board[4][5] = 'B'
+    board[3][3] = 'B'
+    board[5][3] = 'B'
+    board[4][2] = 'B'
+
+    const territory = estimateTerritory(board)
+    expect(territory.deadRemovedWhite).toBe(1)
+
+    const score = computeScore({
+      board,
+      capturedByBlack: 0,
+      capturedByWhite: 0,
+      komi: 6.5,
+    })
+
+    // Black's reported prisoners include the lifted white stone.
+    expect(score.capturedByBlack).toBeGreaterThanOrEqual(1)
+  })
+})
+
 describe('goEngine - territory estimation and scoring', () => {
   it('assigns simple enclosed regions as territory for the surrounding color', () => {
     const size = 9
